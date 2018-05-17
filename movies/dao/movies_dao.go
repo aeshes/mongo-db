@@ -36,3 +36,12 @@ func (m *MoviesDAO) Insert(movie models.Movie) error {
 	err := db.C(Collection).Insert(&movie)
 	return err
 }
+
+func (m *MoviesDAO) Delete(movie models.Movie) error {
+	err := db.C(Collection).Remove(&movie)
+	return err
+}
+func (m *MoviesDAO) Update(movie models.Movie) error {
+	err := db.C(Collection).UpdateId(movie.ID, &movie)
+	return err
+}

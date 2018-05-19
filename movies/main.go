@@ -3,36 +3,37 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"movies/dao"
 	"movies/models"
+	"movies/upload"
 	"net/http"
-	"os"
 
 	"github.com/gorilla/mux"
 	"gopkg.in/mgo.v2/bson"
 )
 
 var d = dao.MoviesDAO{}
+var storage = Storage{}
+
+func check(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
 func TestingEndpoint(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	fmt.Println(r.Header["Content-Range"])
-	data, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Println(err)
-	}
-	file, err := os.OpenFile("tmp.jpg", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if _, err := file.Write(data); err != nil {
-		log.Fatal(err)
-	}
-	if err := file.Close(); err != nil {
-		log.Fatal(err)
-	}
+
+	meta, err := upload.ParseMeta(r)
+	check(err)
+
+	fmt.Println(meta.MediaType)
+}
+
+func fileUploadEndpoint(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
 }
 
 // AllMoviesEndPoint show all movies
@@ -94,6 +95,10 @@ func init() {
 }
 
 func main() {
+	storage.Connect()
+	storage.UploadGridFile()
+	storage.ShowGridFile("hello")
+
 	d.Connect()
 	router := mux.NewRouter()
 	router.HandleFunc("/movies", AllMoviesEndPoint).Methods("GET")

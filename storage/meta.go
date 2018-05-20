@@ -4,13 +4,15 @@ import "net/http"
 import "mime"
 import "errors"
 import "fmt"
+import "log"
 
-// Meta describes file metainfo
+// Meta describes HTTP metainfo
 type Meta struct {
 	MediaType string
 	Boundary  string
 	Range     *Range
 	FileName  string
+	Property  *Property
 }
 
 // Range describes HTTP range
@@ -23,7 +25,7 @@ type Range struct {
 // Property describes user-define file info
 type Property struct {
 	Name    string
-	Hash    [256]byte
+	Hash    string
 	Creator string
 	SysID   string
 }
@@ -43,6 +45,13 @@ func ParseMeta(req *http.Request) (*Meta, error) {
 	if err := meta.parseContentDisposition(req.Header.Get("Content-Disposition")); err != nil {
 		return nil, err
 	}
+
+	// Parse user defined HTTP headers
+
+	meta.parseName(req.Header.Get("name"))
+	meta.parseCreator(req.Header.Get("creator"))
+	meta.parseHash(req.Header.Get("hash"))
+	meta.parseSysID(req.Header.Get("sysId"))
 
 	return meta, nil
 }
@@ -106,6 +115,59 @@ func (meta *Meta) parseContentDisposition(cd string) error {
 	}
 
 	meta.FileName = filename
+
+	return nil
+}
+
+// Parse user defined headers
+
+func (meta *Meta) parseName(name string) error {
+	if name == "" {
+		log.Println("Request with empty Name header")
+		return nil
+	}
+
+	meta.Property.Name = name
+
+	return nil
+}
+
+const sha256Size = 32
+
+func (meta *Meta) parseHash(h string) error {
+	if h == "" {
+		log.Println("Request with empty Hash header")
+		return nil
+	}
+
+	if len(h) != sha256Size {
+		log.Println("Hash size not equal to SHA-2 size")
+		return nil
+	}
+
+	meta.Property.Hash = h
+
+	return nil
+}
+
+func (meta *Meta) parseCreator(creator string) error {
+	if creator == "" {
+		log.Println("Request with empty Creator header")
+		return nil
+	}
+
+	meta.Property.Creator = creator
+
+	return nil
+}
+
+func (meta *Meta) parseSysID(sysID string) error {
+	if sysID == "" {
+		log.Println("Request with empty sysId header")
+		return nil
+	}
+
+	meta.Property.SysID = sysID
 
 	return nil
 }

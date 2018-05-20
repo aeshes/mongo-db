@@ -103,7 +103,15 @@ func handleCreateAtomically(w http.ResponseWriter, r *http.Request) {
 		if _, err := io.Copy(file, r.Body); err != nil {
 			log.Println("When CreateAtomically, write file: ", err)
 			respondWithError(w, 400, "cant write local file")
+			return
 		}
+
+		// Note: why file handle is invalid in StoreFromDisk?
+		fileOnDisk := &LocalFile{Path: "./tmp/" + meta.Property.Name,
+			Hash:   meta.Property.Hash,
+			Handle: file,
+			Prev:   nil}
+		storage.StoreFromDisk(fileOnDisk, meta.Property)
 	}
 	respondWithJSON(w, http.StatusOK, map[string]string{"result": "success"})
 }

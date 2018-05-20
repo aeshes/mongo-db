@@ -12,7 +12,7 @@ type Meta struct {
 	Boundary  string
 	Range     *Range
 	FileName  string
-	Property  *Property
+	Property  *FileMeta
 }
 
 // Range describes HTTP range
@@ -22,8 +22,8 @@ type Range struct {
 	Size  int64
 }
 
-// Property describes user-define file info
-type Property struct {
+// FileMeta describes user-define file info
+type FileMeta struct {
 	Name    string
 	Hash    string
 	Creator string
@@ -125,7 +125,7 @@ func (meta *Meta) parseUserProperties(req *http.Request) {
 	hash = parseHash(req.Header.Get("hash"))
 	id = parseSysID(req.Header.Get("sysId"))
 
-	meta.Property = &Property{Name: name,
+	meta.Property = &FileMeta{Name: name,
 		Creator: creator,
 		Hash:    hash,
 		SysID:   id}
@@ -163,14 +163,14 @@ func parseSysID(sysID string) string {
 	return sysID
 }
 
-func (p *Property) isValid() bool {
+func (p *FileMeta) isValid() bool {
 	return p.Name != "" &&
 		p.Creator != "" &&
 		p.Hash != "" &&
 		p.SysID != ""
 }
 
-func (p *Property) Dump() {
+func (p *FileMeta) Dump() {
 	fmt.Printf("Name = %s\n", p.Name)
 	fmt.Printf("Creator = %s\n", p.Creator)
 	fmt.Printf("Hash = %s\n", p.Hash)

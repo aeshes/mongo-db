@@ -33,6 +33,36 @@ func (s *Storage) CreateGridFile(name string) (*mgo.GridFile, error) {
 	return file, nil
 }
 
+// StoreFromDisk stores disk file in GridFS
+// Is local file's sha-256 is not equal to sha-256 value in FileMeta,
+// error is returned
+func (s *Storage) StoreFromDisk(file *LocalFile, meta *FileMeta) error {
+	if file.Sha256() == meta.Hash {
+		gridFile, err := s.CreateGridFile(meta.Name)
+		if err != nil {
+			log.Println("In StoreFromDisk: ", err)
+			return err
+		}
+		defer gridFile.Close()
+
+		localFile, err := os.Open(file.Path)
+		if err != nil {
+			log.Println("While opening local file in StoreFromDisk: ", err)
+			return err
+		}
+		defer localFile.Close()
+
+		bytesWritten, err := io.Copy(gridFile, localFile)
+		if err != nil {
+			log.Println("While copying local file to GridFS: ", err)
+			return err
+		}
+		log.Printf("Copied %d bytes to GridFS.", bytesWritten)
+	}
+
+	return errors.New("file.sha256 != meta.sha256")
+}
+
 func (s *Storage) UploadGridFile() {
 	file, err := s.CreateGridFile("hello")
 	if err != nil {

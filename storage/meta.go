@@ -146,8 +146,8 @@ func parseHash(h string) string {
 		log.Println("Request with empty Hash header")
 	}
 
-	if len(h) != sha256Size {
-		log.Println("Invalid SHA-256 size")
+	if len(h)/2 != sha256Size {
+		log.Println("Invalid SHA-256 size, got bytes: ", len(h))
 	}
 
 	return h

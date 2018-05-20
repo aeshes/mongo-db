@@ -12,6 +12,7 @@ import (
 )
 
 var storage = Storage{}
+var local = LocalStorage{}
 
 func check(err error) {
 	if err != nil {
@@ -79,6 +80,34 @@ func handleFileID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// PUT request
+//Atomically creates "small" file which can be POSTed in one request
+func handleCreateAtomically(w http.ResponseWriter, r *http.Request) {
+	meta, err := ParseMeta(r)
+	if err != nil {
+		log.Println("In handleCreateAtomically: ", err)
+		respondWithError(w, 400, "cant parse meta info")
+		return
+	}
+
+	if meta.Property.isValid() {
+		file, err := local.CreateTempFile(meta.Property.Name)
+		if err != nil {
+			log.Println("When CreateAtomically: create temporary, ", err)
+			respondWithError(w, 400, "cant create local file")
+			return
+		}
+
+		defer file.Close()
+
+		if _, err := io.Copy(file, r.Body); err != nil {
+			log.Println("When CreateAtomically, write file: ", err)
+			respondWithError(w, 400, "cant write local file")
+		}
+	}
+	respondWithJSON(w, http.StatusOK, map[string]string{"result": "success"})
+}
+
 func respondWithError(w http.ResponseWriter, code int, msg string) {
 	respondWithJSON(w,
 		code,
@@ -99,6 +128,7 @@ func main() {
 	router.HandleFunc("/testing", testingEndpoint).Methods("PUT")
 	router.HandleFunc("/testing", getFileEndpoint).Methods("GET")
 	router.HandleFunc("/commonfs/{fileid}", handleFileID).Methods("HEAD")
+	router.HandleFunc("/commonfs/createAtomically", handleCreateAtomically).Methods("PUT")
 
 	if err := http.ListenAndServe(":3000", router); err != nil {
 		log.Fatal(err)

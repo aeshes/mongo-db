@@ -47,11 +47,7 @@ func ParseMeta(req *http.Request) (*Meta, error) {
 	}
 
 	// Parse user defined HTTP headers
-
-	meta.parseName(req.Header.Get("name"))
-	meta.parseCreator(req.Header.Get("creator"))
-	meta.parseHash(req.Header.Get("hash"))
-	meta.parseSysID(req.Header.Get("sysId"))
+	meta.parseUserProperties(req)
 
 	return meta, nil
 }
@@ -121,53 +117,61 @@ func (meta *Meta) parseContentDisposition(cd string) error {
 
 // Parse user defined headers
 
-func (meta *Meta) parseName(name string) error {
+func (meta *Meta) parseUserProperties(req *http.Request) {
+	var name, hash, creator, id string
+
+	name = parseName(req.Header.Get("name"))
+	creator = parseCreator(req.Header.Get("creator"))
+	hash = parseHash(req.Header.Get("hash"))
+	id = parseSysID(req.Header.Get("sysId"))
+
+	meta.Property = &Property{Name: name,
+		Creator: creator,
+		Hash:    hash,
+		SysID:   id}
+}
+
+func parseName(name string) string {
 	if name == "" {
 		log.Println("Request with empty Name header")
-		return nil
 	}
 
-	meta.Property.Name = name
-
-	return nil
+	return name
 }
 
 const sha256Size = 32
 
-func (meta *Meta) parseHash(h string) error {
+func parseHash(h string) string {
 	if h == "" {
 		log.Println("Request with empty Hash header")
-		return nil
 	}
 
 	if len(h) != sha256Size {
-		log.Println("Hash size not equal to SHA-2 size")
-		return nil
+		log.Println("Invalid SHA-256 size")
 	}
 
-	meta.Property.Hash = h
-
-	return nil
+	return h
 }
 
-func (meta *Meta) parseCreator(creator string) error {
+func parseCreator(creator string) string {
 	if creator == "" {
 		log.Println("Request with empty Creator header")
-		return nil
 	}
 
-	meta.Property.Creator = creator
-
-	return nil
+	return creator
 }
 
-func (meta *Meta) parseSysID(sysID string) error {
+func parseSysID(sysID string) string {
 	if sysID == "" {
 		log.Println("Request with empty sysId header")
-		return nil
 	}
 
-	meta.Property.SysID = sysID
+	return sysID
+}
 
-	return nil
+func (p *Property) isValid() bool {
+	return p.Name != "" &&
+		p.Creator != "" &&
+		p.Hash != "" &&
+		p.SysID != ""
 }

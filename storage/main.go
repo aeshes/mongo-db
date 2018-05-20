@@ -59,6 +59,26 @@ func getFileEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HEAD request
+func handleFileID(w http.ResponseWriter, r *http.Request) {
+	meta, err := ParseMeta(r)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	if meta.Property.isValid() {
+		fmt.Printf("Name = %s\n", meta.Property.Name)
+		fmt.Printf("Creator = %s\n", meta.Property.Creator)
+		fmt.Printf("Hash = %s\n", meta.Property.Hash)
+		fmt.Printf("sysId = %s\n", meta.Property.SysID)
+	} else {
+		respondWithError(w,
+			404,
+			"empty user defined headers")
+	}
+}
+
 func respondWithError(w http.ResponseWriter, code int, msg string) {
 	respondWithJSON(w,
 		code,
@@ -78,6 +98,7 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/testing", testingEndpoint).Methods("PUT")
 	router.HandleFunc("/testing", getFileEndpoint).Methods("GET")
+	router.HandleFunc("/commonfs/{fileid}", handleFileID).Methods("HEAD")
 
 	if err := http.ListenAndServe(":3000", router); err != nil {
 		log.Fatal(err)

@@ -69,10 +69,7 @@ func handleFileID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if meta.Property.isValid() {
-		fmt.Printf("Name = %s\n", meta.Property.Name)
-		fmt.Printf("Creator = %s\n", meta.Property.Creator)
-		fmt.Printf("Hash = %s\n", meta.Property.Hash)
-		fmt.Printf("sysId = %s\n", meta.Property.SysID)
+		meta.Property.Dump()
 	} else {
 		respondWithError(w,
 			404,
@@ -91,6 +88,9 @@ func handleCreateAtomically(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if meta.Property.isValid() {
+
+		meta.Property.Dump()
+
 		file, err := local.CreateTempFile(meta.Property.Name)
 		if err != nil {
 			log.Println("When CreateAtomically: create temporary, ", err)

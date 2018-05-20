@@ -139,15 +139,9 @@ func parseName(name string) string {
 	return name
 }
 
-const sha256Size = 32
-
 func parseHash(h string) string {
 	if h == "" {
 		log.Println("Request with empty Hash header")
-	}
-
-	if len(h)/2 != sha256Size {
-		log.Println("Invalid SHA-256 size, got bytes: ", len(h))
 	}
 
 	return h
@@ -174,4 +168,11 @@ func (p *Property) isValid() bool {
 		p.Creator != "" &&
 		p.Hash != "" &&
 		p.SysID != ""
+}
+
+func (p *Property) Dump() {
+	fmt.Printf("Name = %s\n", p.Name)
+	fmt.Printf("Creator = %s\n", p.Creator)
+	fmt.Printf("Hash = %s\n", p.Hash)
+	fmt.Printf("sysId = %s\n", p.SysID)
 }

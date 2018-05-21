@@ -61,20 +61,39 @@ func getFileEndpoint(w http.ResponseWriter, r *http.Request) {
 }
 
 // HEAD request
+/*
+/commonfs/<fileid>
+Request headers:
+none
+
+Response status:
+200 - presents, 404 - absents
+
+Response headers:
+<name> : file name
+<hash> : file hash
+<creator> : creator property
+<sysId>: sysId property
+
+Response body:
+none */
+
 func handleFileID(w http.ResponseWriter, r *http.Request) {
-	meta, err := ParseMeta(r)
-	if err != nil {
-		log.Println(err)
+	vars := mux.Vars(r)
+	fileid := vars["fileid"]
+	fmt.Println(fileid)
+	meta := storage.QueryMeta(fileid)
+	if meta != nil {
+		w.Header().Add("name", meta.Name)
+		w.Header().Add("hash", meta.Hash)
+		w.Header().Add("creator", meta.Creator)
+		w.Header().Add("sysId", meta.SysID)
+		w.WriteHeader(http.StatusOK)
+
 		return
 	}
 
-	if meta.Property.isValid() {
-		meta.Property.Dump()
-	} else {
-		respondWithError(w,
-			404,
-			"empty user defined headers")
-	}
+	w.WriteHeader(404)
 }
 
 // PUT request

@@ -24,10 +24,10 @@ type Range struct {
 
 // FileMeta describes user-define file info
 type FileMeta struct {
-	Name    string
-	Hash    string
-	Creator string
-	SysID   string
+	Name    string `bson:"name" json:"name"`
+	Hash    string `bson:"hash" json:"hash"`
+	Creator string `bson:"creator" json:"creator"`
+	SysID   string `bson:"sysId" json:"sysId"`
 }
 
 // ParseMeta parses request information and makes Meta

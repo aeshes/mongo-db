@@ -68,8 +68,29 @@ func (s *DataStorage) InsertMetaInfo(file *mgo.GridFile, m *FileMeta) {
 
 	// Save new meta info
 	if err := meta.Insert(&properties); err != nil {
-		log.Println("Cant insert meta information")
+		log.Println("Cant insert meta information", err)
 	}
+}
+
+// QueryMeta queries meta information from collection 'meta'
+// about file identified by id, which must be a string representation
+//  of an ObjectId
+func (s *DataStorage) QueryMeta(id string) *FileMeta {
+	var reference bson.ObjectId
+	var meta FileMeta
+
+	if bson.IsObjectIdHex(id) {
+		reference = bson.ObjectIdHex(id)
+		c := s.db.C(FileMetaCollection)
+		err := c.Find(bson.M{"reference": reference}).One(&meta)
+		if err != nil {
+			log.Println("While finding meta info by ObjectId: ", err)
+			return nil
+		}
+		return &meta
+	}
+
+	return nil
 }
 
 // StoreFromDisk stores disk file in GridFS

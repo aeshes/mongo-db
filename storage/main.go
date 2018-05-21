@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var storage = Storage{}
+var storage = DataStorage{}
 var local = LocalStorage{}
 
 func check(err error) {
@@ -131,6 +131,7 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 
 func main() {
 	storage.Connect()
+	storage.SaveFileToDisk("meow.jpg")
 
 	router := mux.NewRouter()
 	router.HandleFunc("/testing", testingEndpoint).Methods("PUT")

@@ -1,42 +1,81 @@
 package main
 
-import "gopkg.in/mgo.v2"
-import "errors"
-import "log"
-import "fmt"
-import "io"
-import "os"
+import (
+	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"os"
 
-type Storage struct {
-	Server     string
-	Database   string
-	Collection string
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
+)
+
+// DataStorage is responsible for all database interaactions
+type DataStorage struct {
+	session *mgo.Session
+	db      *mgo.Database
 }
 
-var db *mgo.Database
+type FileProperties struct {
+	Reference bson.ObjectId `bson:"reference" json:"reference"`
+	Name      string        `bson:"name" json:"name"`
+	Creator   string        `bson:"creator" json:"creator"`
+	Hash      string        `bson:"hash" json:"hash"`
+	SysID     string        `bson:"sysId" json:"sysId"`
+}
+
+// MongoServerAddr is the default server to connect with
+const MongoServerAddr = "127.0.0.1"
+
+// MongoDefaultDB is the default database to store files
+const MongoDefaultDB = "binary"
+
+// FileMetaCollection is a mongo collection for file meta data:
+// reference to grid file, name, creator, hash, sysId
+const FileMetaCollection = "meta"
 
 // Connect connects to the default server and opens default DB
-func (s *Storage) Connect() {
-	session, err := mgo.Dial("localhost")
+func (s *DataStorage) Connect() {
+	session, err := mgo.Dial(MongoServerAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	db = session.DB("binary")
+	s.session = session
+	s.db = session.DB(MongoDefaultDB)
 }
 
 // CreateGridFile creates file in GridFS
-func (s *Storage) CreateGridFile(name string) (*mgo.GridFile, error) {
-	file, err := db.GridFS("fs").Create(name)
+func (s *DataStorage) CreateGridFile(name string) (*mgo.GridFile, error) {
+	file, err := s.db.GridFS("fs").Create(name)
 	if err != nil {
 		return nil, errors.New("Can not create Grid file")
 	}
 	return file, nil
 }
 
+// InsertMetaInfo inserta meta information about new file into table 'meta'
+func (s *DataStorage) InsertMetaInfo(file *mgo.GridFile, m *FileMeta) {
+
+	// Open meta collection
+	meta := s.session.DB(MongoDefaultDB).C(FileMetaCollection)
+	var properties = &FileProperties{Reference: file.Id().(bson.ObjectId),
+		Name:    m.Name,
+		Creator: m.Creator,
+		Hash:    m.Hash,
+		SysID:   m.SysID}
+
+	// Save new meta info
+	if err := meta.Insert(&properties); err != nil {
+		log.Println("Cant insert meta information")
+	}
+}
+
 // StoreFromDisk stores disk file in GridFS
-// Is local file's sha-256 is not equal to sha-256 value in FileMeta,
+// If local file's sha-256 is not equal to sha-256 value in FileMeta,
 // error is returned
-func (s *Storage) StoreFromDisk(file *LocalFile, meta *FileMeta) error {
+func (s *DataStorage) StoreFromDisk(file *LocalFile, meta *FileMeta) error {
 	if file.Sha256() == meta.Hash {
 		gridFile, err := s.CreateGridFile(meta.Name)
 		if err != nil {
@@ -45,35 +84,27 @@ func (s *Storage) StoreFromDisk(file *LocalFile, meta *FileMeta) error {
 		}
 		defer gridFile.Close()
 
-		localFile, err := os.Open(file.Path)
+		content, err := ioutil.ReadFile(file.Path)
 		if err != nil {
-			log.Println("While opening local file in StoreFromDisk: ", err)
+			log.Println("While reading local file in StoreFromDisk: ", err)
 			return err
 		}
-		defer localFile.Close()
 
-		bytesWritten, err := io.Copy(gridFile, localFile)
+		bytesWritten, err := gridFile.Write(content)
 		if err != nil {
-			log.Println("While copying local file to GridFS: ", err)
+			log.Println("While writing local file to GridFS: ", err)
 			return err
 		}
+		s.InsertMetaInfo(gridFile, meta)
 		log.Printf("Copied %d bytes to GridFS.", bytesWritten)
 	}
 
 	return errors.New("file.sha256 != meta.sha256")
 }
 
-func (s *Storage) UploadGridFile() {
-	file, err := s.CreateGridFile("hello")
-	if err != nil {
-		log.Fatal(err)
-	}
-	file.Write([]byte("hello world"))
-	file.Close()
-}
-
-func (s *Storage) OpenFile(name string) (io.ReadCloser, error) {
-	file, err := db.GridFS("fs").Open(name)
+// OpenFile opens grid file for reading
+func (s *DataStorage) OpenFile(name string) (io.ReadCloser, error) {
+	file, err := s.db.GridFS("fs").Open(name)
 	if err != nil {
 		log.Println(err)
 		return nil, err
@@ -81,26 +112,27 @@ func (s *Storage) OpenFile(name string) (io.ReadCloser, error) {
 	return file, nil
 }
 
-func (s *Storage) SaveFileToDisk(name string) {
+// SaveFileToDisk reads grid file from GridFS
+// and saves read data to disk
+func (s *DataStorage) SaveFileToDisk(name string) {
 	// opens file in mongo GridFS
-	file, err := db.GridFS("fs").Open(name)
+	file, err := s.db.GridFS("fs").Open(name)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	defer file.Close()
 
-	dest, err := os.OpenFile("tmp",
+	dest, err := os.OpenFile("./tmpfile.jpg",
 		os.O_CREATE|os.O_WRONLY,
 		0644)
+	if err != nil {
+		log.Println("While creating file: ", err)
+	}
 	defer dest.Close()
 
 	// Copies from grid file to disk file
 	if _, err := io.Copy(dest, file); err != nil {
 		fmt.Println(err)
 	}
-}
-
-func (s *Storage) WriteToGridFile() {
-
 }
